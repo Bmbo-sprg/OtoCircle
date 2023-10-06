@@ -133,7 +133,65 @@ WIP
 
 #### 概念モデル
 
+```mermaid
+erDiagram
 
+users }o--o{ composers: "n:n"
+users }o--o{ circles: "n:n"
+composers ||--o{ musics: "1:n"
+users |o--o{ playlists: "1:n"
+circles |o--o{ playlists: "1:n"
+users |o--o{ comments: "1:n"
+musics |o--o{ comments: "1:n"
+
+users {
+    integer id
+    string login_id
+    string password(hash)
+    enum role
+    string name
+    string bio
+}
+
+composers {
+    integer id
+    string name
+}
+
+circles {
+    integer id
+    string name
+    integer owner_id
+}
+
+musics {
+    integer id
+    string name
+    integer composer_id
+    double length
+    double bpm
+    string lyrics
+    string description
+    enum visible_to
+}
+
+playlists {
+    integer id
+    string name
+    bool is_circle
+    integer creator_id
+    string description
+    enum visible_to
+}
+
+comments {
+    integer id
+    integer music_id
+    integer user_id
+    double position
+    string contents
+}
+```
 
 #### 論理モデル
 
