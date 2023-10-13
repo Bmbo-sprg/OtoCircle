@@ -300,15 +300,13 @@ musics {
 }
 
 user_playlist_relations {
-    integer user_id PK,FK "not null"
-    integer playlist_id PK,FK "not null / unique"
-    datetime deleted_at
+    integer playlist_id PK,FK "not null"
+    integer user_id FK "not null"
 }
 
 circle_playlist_relations {
-    integer circle_id PK,FK "not null"
-    integer playlist_id PK,FK "not null / unique"
-    datetime deleted_at
+    integer playlist_id PK,FK "not null"
+    integer circle_id FK "not null"
 }
 
 playlists {
@@ -316,6 +314,7 @@ playlists {
     string name "not null"
     text description
     string(enum) visible_to "not null"
+    datetime deleted_at
 }
 
 comments {
@@ -351,16 +350,14 @@ comments {
 プレイリストが持っていた個人・サークルという多相性を解消して、外部キー制約を記述するためのテーブルです。
 
 - `user_id` PK: ユーザーの識別 ID
-- `playlist_id` PK: プレイリストの識別 ID
-- `deleted_at`: 論理削除のための属性。削除された場合にレコードごと削除するのではなく、ここに削除時刻を格納する。
+- `playlist_id`: プレイリストの識別 ID
 
 ##### サークルプレイリスト中間テーブル (circle_playlist_relations)
 
 プレイリストが持っていた個人・サークルという多相性を解消して、外部キー制約を記述するためのテーブルです。
 
 - `circle_id` PK: サークルの識別 ID
-- `playlist_id` PK: プレイリストの識別 ID
-- `deleted_at`: 論理削除のための属性。削除された場合にレコードごと削除するのではなく、ここに削除時刻を格納する。
+- `playlist_id`: プレイリストの識別 ID
 
 ### REST API docs
 
