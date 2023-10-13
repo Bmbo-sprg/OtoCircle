@@ -114,12 +114,12 @@ users ||--o{ comments: "1:n"
 musics ||--o{ comments: "1:n"
 
 users {
-    integer id PK
-    string login_id
+    integer internal_id PK
+    string external_id
     string password(hash)
-    bool is_system_admin
+    boolean is_system_admin
     string name
-    string bio
+    text bio
 }
 
 composers {
@@ -137,35 +137,35 @@ musics {
     integer id PK
     string name
     integer composer_id
-    double length
-    double bpm
+    float length
+    float bpm
     string lyrics
-    string description
-    enum visible_to
+    text description
+    string(enum) visible_to
 }
 
 playlists {
     integer id PK
     string name
-    bool is_circle
+    boolean is_circle
     integer creator_id
-    string description
-    enum visible_to
+    text description
+    string(enum) visible_to
 }
 
 comments {
     integer id PK
     integer music_id
     integer user_id
-    double position
-    string contents
+    float position
+    text contents
 }
 ```
 
 ##### ユーザー (users)
 
-- `id` PK: ユーザーの識別 ID
-- `login_id`: ログイン ID
+- `internal_id` PK: ユーザーの識別 ID。一意的に与えられて変更できない。
+- `external_id`: ログイン用の ID。ユーザーが変更できる。
 - `password`: ログインパスワード。ハッシュ化されるはず
 - `is_system_admin`: システム管理者か否か
 - `name`: ニックネーム
@@ -236,6 +236,131 @@ comments {
 - `contents`: コメントの内容
 
 #### 論理モデル
+
+概念モデルから適切に中間テーブルを増やし、一貫性制約を追加することで、完成した関係スキーマは下図の通りです。
+
+```mermaid
+erDiagram
+
+users ||--o{ user_composer_members: "1:n"
+users ||--o{ user_circle_members: "1:n"
+users ||--o{ circles: "1:n"
+users ||--o{ user_playlist_relations: "1:n"
+users ||--o{ comments: "1:n"
+composers ||--o{ user_composer_members: "1:n"
+composers ||--o{ musics: "1:n"
+circles ||--o{ user_circle_members: "1:n"
+circles ||--o{ circle_playlist_relations: "1:n"
+musics ||--o{ comments: "1:n"
+playlists ||--o{ user_playlist_relations: "1:n"
+playlists ||--o{ circle_playlist_relations: "1:n"
+
+users {
+    integer internal_id PK "not null"
+    string external_id "not null / unique"
+    string password "not null (hash)"
+    boolean is_system_admin "not null / default false"
+    string name "not null"
+    text bio
+}
+
+composers {
+    integer id PK "not null"
+    string name "not null"
+}
+
+user_composer_members {
+    integer user_id PK,FK "not null"
+    integer composer_id PK,FK "not null"
+    datetime deleted_at
+}
+
+circles {
+    integer id PK "not null"
+    string name "not null"
+    integer owner_id FK "not null"
+}
+
+user_circle_members {
+    integer user_id PK,FK "not null"
+    integer circle_id PK,FK "not null"
+    datetime joined_at "not null"
+    datetime deleted_at
+}
+
+musics {
+    integer id PK "not null"
+    string name "not null"
+    integer composer_id FK "not null"
+    float length
+    float bpm
+    string lyrics
+    text description
+    string(enum) visible_to "not null"
+}
+
+user_playlist_relations {
+    integer user_id PK,FK "not null"
+    integer playlist_id PK,FK "not null / unique"
+    datetime deleted_at
+}
+
+circle_playlist_relations {
+    integer circle_id PK,FK "not null"
+    integer playlist_id PK,FK "not null / unique"
+    datetime deleted_at
+}
+
+playlists {
+    integer id PK "not null"
+    string name "not null"
+    text description
+    string(enum) visible_to "not null"
+}
+
+comments {
+    integer id PK "not null"
+    integer music_id FK "not null"
+    integer user_id FK "not null"
+    float position
+    text contents "not null"
+}
+```
+
+概念モデルから新たに追加されたテーブルについて説明します。
+
+##### ユーザー・作曲者名義中間テーブル (users_composer_members)
+
+ユーザーと作曲者名義の間にあった many-to-many 関係を解消して、外部キー制約を記述するためのテーブルです。
+
+- `user_id` PK: ユーザーの識別 ID
+- `composer_id` PK: 作曲者名義の識別 ID
+- `deleted_at`: 論理削除のための属性。削除された場合にレコードごと削除するのではなく、ここに削除時刻を格納する。
+
+##### ユーザー・サークル中間テーブル (users_circle_members)
+
+ユーザーとサークルの間にあった many-to-many 関係を解消して、外部キー制約を記述するためのテーブルです。
+
+- `user_id` PK: ユーザーの識別 ID
+- `circle_id` PK: サークルの識別 ID
+- `joined_at`: サークルに追加された時刻
+- `deleted_at`: 論理削除のための属性。削除された場合にレコードごと削除するのではなく、ここに削除時刻を格納する。
+
+##### 個人プレイリスト中間テーブル (user_playlist_relations)
+
+プレイリストが持っていた個人・サークルという多相性を解消して、外部キー制約を記述するためのテーブルです。
+
+- `user_id` PK: ユーザーの識別 ID
+- `playlist_id` PK: プレイリストの識別 ID
+- `deleted_at`: 論理削除のための属性。削除された場合にレコードごと削除するのではなく、ここに削除時刻を格納する。
+
+##### サークルプレイリスト中間テーブル (circle_playlist_relations)
+
+プレイリストが持っていた個人・サークルという多相性を解消して、外部キー制約を記述するためのテーブルです。
+
+- `circle_id` PK: サークルの識別 ID
+- `playlist_id` PK: プレイリストの識別 ID
+- `deleted_at`: 論理削除のための属性。削除された場合にレコードごと削除するのではなく、ここに削除時刻を格納する。
 
 ### REST API docs
 
