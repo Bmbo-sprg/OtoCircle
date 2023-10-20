@@ -294,7 +294,7 @@ musics {
     integer composer_id FK "not null"
     float length
     float bpm
-    string lyrics
+    text lyrics
     text description
     string(enum) visible_to "not null"
 }
